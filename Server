@@ -1,0 +1,69 @@
+import java.io.*;
+import java.net.*;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
+public class Server {
+    private static final BigInteger P = new BigInteger("23");
+    private static final BigInteger G = new BigInteger("5");
+    private static BigInteger privateKey;
+    private static BigInteger publicKey;
+    private static BigInteger sharedKey;
+
+    public static void main(String[] args) throws Exception {
+        ServerSocket serverSocket = new ServerSocket(8080);
+        System.out.println("Server started and waiting for client connection...");
+
+        Socket socket = serverSocket.accept();
+        System.out.println("Client connected!");
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+
+        // Generate server's private key and public key
+        generateKeys();
+
+        // Send public key to client
+        out.println(publicKey.toString());
+
+        // Receive client's public key
+        BigInteger clientPublicKey = new BigInteger(in.readLine());
+
+        // Compute shared key
+        sharedKey = clientPublicKey.modPow(privateKey, P);
+        System.out.println("Shared Key: " + sharedKey);
+
+        // Receive encrypted message from client
+        String encryptedMessage = in.readLine();
+        System.out.println("Encrypted Message: " + encryptedMessage);
+
+        // Decrypt message
+        String decryptedMessage = decrypt(encryptedMessage, sharedKey.intValue());
+        System.out.println("Decrypted Message: " + decryptedMessage);
+
+        socket.close();
+        serverSocket.close();
+    }
+
+    private static void generateKeys() {
+        SecureRandom random = new SecureRandom();
+        privateKey = new BigInteger(1024, random);
+        publicKey = G.modPow(privateKey, P);
+    }
+
+    private static String decrypt(String message, int key) {
+        StringBuilder decrypted = new StringBuilder();
+        for (char character : message.toCharArray()) {
+            if (Character.isUpperCase(character)) {
+                char c = (char) ((character - key - 'A' + 26) % 26 + 'A');
+                decrypted.append(c);
+            } else if (Character.isLowerCase(character)) {
+                char c = (char) ((character - key - 'a' + 26) % 26 + 'a');
+                decrypted.append(c);
+            } else {
+                decrypted.append(character);
+            }
+        }
+        return decrypted.toString();
+    }
+}
