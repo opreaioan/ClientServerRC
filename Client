@@ -1,0 +1,72 @@
+import java.io.*;
+import java.net.*;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
+public class Client {
+    private static final BigInteger P = new BigInteger("23");
+    private static final BigInteger G = new BigInteger("5");
+    private static BigInteger privateKey;
+    private static BigInteger publicKey;
+    private static BigInteger sharedKey;
+
+    private static final String LOREM_IPSUM = "Lorem ipsum dolor sit amet, " +
+            "consectetur adipiscing elit, sed do eiusmod tempor incididunt " +
+            "ut labore et dolore magna aliqua. Ut enim ad minim veniam, " +
+            "quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat." +
+            " Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore " +
+            "eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, " +
+            "sunt in culpa qui officia deserunt mollit anim id est laborum.";
+
+    public static void main(String[] args) throws Exception {
+        Socket socket = new Socket("localhost", 8080);
+        System.out.println("Connected to server!");
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+
+        // Generate client's private key and public key
+        generateKeys();
+
+        // Receive server's public key
+        BigInteger serverPublicKey = new BigInteger(in.readLine());
+
+        // Send public key to server
+        out.println(publicKey.toString());
+
+        // Compute shared key
+        sharedKey = serverPublicKey.modPow(privateKey, P);
+        System.out.println("Shared Key: " + sharedKey);
+
+        // Encrypt message
+        String encryptedMessage = encrypt(LOREM_IPSUM, sharedKey.intValue());
+        System.out.println("Encrypted Message: " + encryptedMessage);
+
+        // Send encrypted message to server
+        out.println(encryptedMessage);
+
+        socket.close();
+    }
+
+    private static void generateKeys() {
+        SecureRandom random = new SecureRandom();
+        privateKey = new BigInteger(1024, random);
+        publicKey = G.modPow(privateKey, P);
+    }
+
+    private static String encrypt(String message, int key) {
+        StringBuilder encrypted = new StringBuilder();
+        for (char character : message.toCharArray()) {
+            if (Character.isUpperCase(character)) {
+                char c = (char) ((character + key - 'A') % 26 + 'A');
+                encrypted.append(c);
+            } else if (Character.isLowerCase(character)) {
+                char c = (char) ((character + key - 'a') % 26 + 'a');
+                encrypted.append(c);
+            } else {
+                encrypted.append(character);
+            }
+        }
+        return encrypted.toString();
+    }
+}
